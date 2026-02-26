@@ -1,40 +1,75 @@
-### Ứng dụng Todo App
+# Todo App
 
-**Quick links**
-- Source entry: [todo_app/lib/main.dart](todo_app/lib/main.dart)
-- Home screen: [todo_app/lib/screens/home_screen.dart](todo_app/lib/screens/home_screen.dart)
-- Model: [todo_app/lib/models/todo_item.dart](todo_app/lib/models/todo_item.dart)
-- Widget: [todo_app/lib/widgets/todo_item_widget.dart](todo_app/lib/widgets/todo_item_widget.dart)
+Ứng dụng quản lý công việc xây dựng bằng Flutter.
 
-**1. Cấu trúc dự án (tóm tắt)**
-- **android/**, **ios/**, **linux/**, **macos/**, **web/**, **windows/**: nền tảng
-	do Flutter sinh ra.
-- **lib/**: mã nguồn ứng dụng.
-	- [lib/main.dart](todo_app/lib/main.dart): điểm khởi đầu `MyApp`, cấu hình
-		theme và gọi `HomeScreen`.
-	- [lib/screens/home_screen.dart](todo_app/lib/screens/home_screen.dart): màn
-		hình chính, quản lý trạng thái todo list, lưu/đọc bằng
-		`SharedPreferences`, logic thêm/sửa/xóa, tìm kiếm, phân lọc (tabs),
-		animation và UI tương tác.
-	- [lib/models/todo_item.dart](todo_app/lib/models/todo_item.dart): lớp dữ liệu
-		`TodoItem` với serialize/deserialize (toMap/fromMap/toJson/fromJson).
-	- [lib/widgets/todo_item_widget.dart](todo_app/lib/widgets/todo_item_widget.dart):
-		widget hiển thị từng mục công việc, checkbox, nút sửa/xóa và một số
-		animation/transition.
-- **test/**: chứa test mẫu (nếu có thể mở rộng để thêm unit/widget tests).
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Active-success)
 
-**2. Luồng chính**
-- `main.dart` khởi tạo `MaterialApp` và `HomeScreen`.
-- `HomeScreen` là `StatefulWidget` chứa danh sách `_todos` (List<TodoItem>) và
-	`AnimatedList` để hiển thị các item với hiệu ứng chèn/xóa. Các tính năng
-	chính:
-	- Lưu/đọc dữ liệu: `_loadTodos()` / `_saveTodos()` sử dụng
-		`SharedPreferences` với key `_storageKey` (mảng chuỗi JSON).
-	- Thêm/Sửa: `_showAddEditSheet()` hiển thị modal bottom sheet có form để
-		nhập tiêu đề, mô tả và hẹn ngày/giờ. Khi lưu, tạo `TodoItem` mới hoặc
-		cập nhật item hiện có.
-	- Xóa: `_confirmDelete()` hiển thị dialog xác nhận, `_deleteTodo()` xử lý
-		xóa và animation remove từ `AnimatedList`.
-	- Tìm kiếm & lọc: thanh tìm kiếm và `TabBar` (Tất cả / Chưa xong / Đã xong).
-	- Giao diện: nhiều chỗ dùng `AnimatedContainer`, `AnimatedSwitcher`,
-		`TweenAnimationBuilder` để tăng trải nghiệm người dùng.
+## ✨ Highlights
+
+- Light/Dark mode
+- Tạo, sửa, xóa, hoàn tác xóa (Undo)
+- Tìm kiếm theo tiêu đề/mô tả theo thời gian thực
+- Lọc theo trạng thái: Tất cả / Đang làm / Hoàn thành
+- Ưu tiên công việc: Thấp / Trung bình / Cao
+- Ghim công việc quan trọng
+- Deadline theo ngày + giờ
+- Sắp xếp linh hoạt: Smart / Deadline / Mới tạo / Ưu tiên
+- Dọn dẹp nhanh các công việc đã hoàn thành
+
+## 🗂️ Project Structure
+
+```text
+lib/
+├─ main.dart                 # App entry, theme, routes
+├─ models/
+│  └─ todo_item.dart         # Data model + JSON serialization
+├─ screens/
+│  ├─ home_screen.dart       # Main todo experience
+│  └─ settings_screen.dart   # Theme settings
+├─ services/
+│  └─ settings_service.dart  # Persist theme mode
+└─ widgets/
+   └─ todo_item_widget.dart  # Reusable task card
+```
+
+## 🚀 Getting Started
+
+### 1) Prerequisites
+
+- Flutter SDK 3.x
+- Dart SDK 3.x
+- Android Studio / VS Code + Flutter extension
+
+Kiểm tra môi trường:
+
+```bash
+flutter doctor
+```
+
+### 2) Install dependencies
+
+```bash
+flutter pub get
+```
+
+### 3) Run app
+
+```bash
+flutter run
+```
+
+Chạy trên web:
+
+```bash
+flutter run -d chrome
+```
+
+## 🧪 Testing
+
+Chạy test widget hiện tại:
+
+```bash
+flutter test
+```
