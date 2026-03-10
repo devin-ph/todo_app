@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "446266275381",
+    "project_id": "devin-todo-app",
+    "storage_bucket": "devin-todo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:446266275381:android:df5e03e4fbcaf21773e37c",
+        "android_client_info": {
+          "package_name": "com.example.todo_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "446266275381-h4u0o00kmbt4im78nt4o5ikac94o59v0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdVY8f5EBygBWK56oehvBi_uZ9ygGnf0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "446266275381-h4u0o00kmbt4im78nt4o5ikac94o59v0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

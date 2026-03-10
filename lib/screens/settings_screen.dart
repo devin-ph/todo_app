@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -45,23 +47,41 @@ class SettingsScreen extends StatelessWidget {
                       Text('Giao diện', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 6),
                       const SizedBox(height: 12),
-                      ...ThemeMode.values.map(
-                        (item) => RadioListTile<ThemeMode>(
-                          value: item,
-                          groupValue: mode,
-                          onChanged: (value) {
-                            if (value != null) {
-                              SettingsService.setThemeMode(value);
-                            }
-                          },
-                          title: Text(_modeLabel(item)),
-                          secondary: Icon(_modeIcon(item)),
-                          contentPadding: EdgeInsets.zero,
+                      RadioGroup<ThemeMode>(
+                        groupValue: mode,
+                        onChanged: (value) {
+                          if (value != null) {
+                            SettingsService.setThemeMode(value);
+                          }
+                        },
+                        child: Column(
+                          children: ThemeMode.values
+                              .map(
+                                (item) => RadioListTile<ThemeMode>(
+                                  value: item,
+                                  title: Text(_modeLabel(item)),
+                                  secondary: Icon(_modeIcon(item)),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              )
+                              .toList(),
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () async {
+                  await AuthService.signOut();
+                  if (context.mounted) {
+                    // Pop toàn bộ stack về root để AuthGate hiển thị LoginScreen
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Đăng xuất'),
               ),
             ],
           );

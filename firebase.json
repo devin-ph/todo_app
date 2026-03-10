@@ -1,0 +1,29 @@
+{
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "devin-todo-app",
+					"appId": "1:446266275381:android:df5e03e4fbcaf21773e37c",
+					"fileOutput": "android/app/google-services.json"
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "devin-todo-app",
+					"configurations": {
+						"android": "1:446266275381:android:df5e03e4fbcaf21773e37c",
+						"ios": "1:446266275381:ios:38a52d3a884d8a8173e37c",
+						"macos": "1:446266275381:ios:38a52d3a884d8a8173e37c",
+						"web": "1:446266275381:web:a8f658b497d9363673e37c",
+						"windows": "1:446266275381:web:71de139e2232810473e37c"
+					}
+				}
+			}
+		}
+	},
+	"firestore": {
+		"rules": "firestore.rules",
+		"indexes": "firestore.indexes.json"
+	}
+}

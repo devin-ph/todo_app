@@ -11,13 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_app/main.dart';
 
 void main() {
-  testWidgets('Todo app renders core UI', (WidgetTester tester) async {
+  testWidgets('Todo app renders login screen when signed out', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Todo'), findsOneWidget);
-    expect(find.text('Thêm công việc'), findsOneWidget);
-    expect(find.byIcon(Icons.search), findsOneWidget);
+    expect(find.text('Todo App'), findsOneWidget);
+    expect(find.text('Đăng nhập với Google'), findsOneWidget);
+    expect(find.byIcon(Icons.login), findsOneWidget);
   });
 }

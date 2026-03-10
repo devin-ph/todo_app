@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/todo_item.dart';
+import '../services/todo_firestore_service.dart';
 import '../widgets/todo_item_widget.dart';
 
 enum TaskFilter { all, active, done }
@@ -17,10 +19,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const String _storageKey = 'todos_v2';
-
   final List<TodoItem> _todos = [];
   final TextEditingController _searchController = TextEditingController();
+  StreamSubscription<List<TodoItem>>? _todosSub;
 
   TaskFilter _filter = TaskFilter.all;
   TaskSort _sort = TaskSort.smart;
@@ -31,43 +32,45 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTodos();
+    _bindTodos();
   }
 
   @override
   void dispose() {
+    _todosSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadTodos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v2Raw = prefs.getStringList(_storageKey);
-    final legacyRaw = prefs.getStringList('todos_v1') ?? [];
-    final source = v2Raw ?? legacyRaw;
+  Future<void> _bindTodos() async {
+    try {
+      await TodoFirestoreService.migrateLocalTodosIfNeeded();
 
-    final parsed = <TodoItem>[];
-    for (final item in source) {
-      try {
-        parsed.add(TodoItem.fromJson(item));
-      } catch (_) {}
+      _todosSub = TodoFirestoreService.watchTodos().listen(
+        (items) {
+          if (!mounted) return;
+          setState(() {
+            _todos
+              ..clear()
+              ..addAll(items);
+            _loading = false;
+          });
+        },
+        onError: (_) {
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+          });
+          _showMessage('Không thể tải công việc từ cloud');
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+      _showMessage('Không thể đồng bộ công việc');
     }
-
-    setState(() {
-      _todos
-        ..clear()
-        ..addAll(parsed);
-      _loading = false;
-    });
-
-    if (v2Raw == null && source.isNotEmpty) {
-      await _saveTodos();
-    }
-  }
-
-  Future<void> _saveTodos() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_storageKey, _todos.map((e) => e.toJson()).toList());
   }
 
   List<TodoItem> get _visibleTodos {
@@ -81,8 +84,10 @@ class _HomeScreenState extends State<HomeScreen> {
         TaskFilter.done => todo.isDone,
       };
 
-      final byPriority = _priorityFilter == null || todo.priority == _priorityFilter;
-      final bySearch = query.isEmpty ||
+      final byPriority =
+          _priorityFilter == null || todo.priority == _priorityFilter;
+      final bySearch =
+          query.isEmpty ||
           todo.title.toLowerCase().contains(query) ||
           todo.description.toLowerCase().contains(query);
 
@@ -111,13 +116,17 @@ class _HomeScreenState extends State<HomeScreen> {
             return a.isDone ? 1 : -1;
           }
 
-          final aOverdue = a.dueDate != null && !a.isDone && a.dueDate!.isBefore(now);
-          final bOverdue = b.dueDate != null && !b.isDone && b.dueDate!.isBefore(now);
+          final aOverdue =
+              a.dueDate != null && !a.isDone && a.dueDate!.isBefore(now);
+          final bOverdue =
+              b.dueDate != null && !b.isDone && b.dueDate!.isBefore(now);
           if (aOverdue != bOverdue) {
             return aOverdue ? -1 : 1;
           }
 
-          final p = priorityScore(a.priority).compareTo(priorityScore(b.priority));
+          final p = priorityScore(
+            a.priority,
+          ).compareTo(priorityScore(b.priority));
           if (p != 0) return p;
 
           if (a.dueDate != null && b.dueDate != null) {
@@ -137,7 +146,9 @@ class _HomeScreenState extends State<HomeScreen> {
         case TaskSort.createdAt:
           return b.createdAt.compareTo(a.createdAt);
         case TaskSort.priority:
-          final p = priorityScore(a.priority).compareTo(priorityScore(b.priority));
+          final p = priorityScore(
+            a.priority,
+          ).compareTo(priorityScore(b.priority));
           if (p != 0) return p;
           return b.createdAt.compareTo(a.createdAt);
       }
@@ -153,17 +164,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _upsertTodo(TodoItem todo) async {
-    final index = _todos.indexWhere((item) => item.id == todo.id);
-
-    setState(() {
-      if (index >= 0) {
-        _todos[index] = todo;
-      } else {
-        _todos.insert(0, todo);
-      }
-    });
-
-    await _saveTodos();
+    try {
+      await TodoFirestoreService.upsertTodo(todo);
+    } catch (_) {
+      _showMessage('Không thể lưu công việc');
+    }
   }
 
   Future<void> _toggleDone(TodoItem todo, bool? value) async {
@@ -206,13 +211,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteWithUndo(TodoItem todo) async {
-    final index = _todos.indexWhere((item) => item.id == todo.id);
-    if (index < 0) return;
-
-    setState(() {
-      _todos.removeAt(index);
-    });
-    await _saveTodos();
+    try {
+      await TodoFirestoreService.deleteTodo(todo.id);
+    } catch (_) {
+      _showMessage('Không thể xóa công việc');
+      return;
+    }
 
     if (!mounted) return;
 
@@ -224,11 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
           action: SnackBarAction(
             label: 'Hoàn tác',
             onPressed: () async {
-              setState(() {
-                final restoredIndex = index <= _todos.length ? index : _todos.length;
-                _todos.insert(restoredIndex, todo);
-              });
-              await _saveTodos();
+              await _upsertTodo(todo);
             },
           ),
         ),
@@ -262,10 +262,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirmed != true) return;
 
-    setState(() {
-      _todos.removeWhere((todo) => todo.isDone);
-    });
-    await _saveTodos();
+    final completedIds = _todos
+        .where((todo) => todo.isDone)
+        .map((todo) => todo.id)
+        .toList();
+    try {
+      await TodoFirestoreService.deleteTodosByIds(completedIds);
+    } catch (_) {
+      _showMessage('Không thể dọn dẹp công việc');
+    }
   }
 
   Future<void> _showAddEditSheet({TodoItem? todo}) async {
@@ -287,7 +292,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int get _overdueCount {
     final now = DateTime.now();
-    return _todos.where((todo) => !todo.isDone && todo.dueDate != null && todo.dueDate!.isBefore(now)).length;
+    return _todos
+        .where(
+          (todo) =>
+              !todo.isDone &&
+              todo.dueDate != null &&
+              todo.dueDate!.isBefore(now),
+        )
+        .length;
   }
 
   String _sortLabel(TaskSort sort) {
@@ -475,10 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: 'clear_done',
                 child: Text('Dọn dẹp đã hoàn thành'),
               ),
-              PopupMenuItem<String>(
-                value: 'settings',
-                child: Text('Cài đặt'),
-              ),
+              PopupMenuItem<String>(value: 'settings', child: Text('Cài đặt')),
             ],
           ),
         ],
@@ -519,8 +528,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: SegmentedButton<TaskFilter>(
                 segments: const [
                   ButtonSegment(value: TaskFilter.all, label: Text('Tất cả')),
-                  ButtonSegment(value: TaskFilter.active, label: Text('Đang làm')),
-                  ButtonSegment(value: TaskFilter.done, label: Text('Hoàn thành')),
+                  ButtonSegment(
+                    value: TaskFilter.active,
+                    label: Text('Đang làm'),
+                  ),
+                  ButtonSegment(
+                    value: TaskFilter.done,
+                    label: Text('Hoàn thành'),
+                  ),
                 ],
                 selected: {_filter},
                 onSelectionChanged: (selection) {
@@ -544,7 +559,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         selected: _priorityFilter == TodoPriority.high,
                         onSelected: (_) {
                           setState(() {
-                            _priorityFilter = _priorityFilter == TodoPriority.high ? null : TodoPriority.high;
+                            _priorityFilter =
+                                _priorityFilter == TodoPriority.high
+                                ? null
+                                : TodoPriority.high;
                           });
                         },
                       ),
@@ -553,7 +571,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         selected: _priorityFilter == TodoPriority.medium,
                         onSelected: (_) {
                           setState(() {
-                            _priorityFilter = _priorityFilter == TodoPriority.medium ? null : TodoPriority.medium;
+                            _priorityFilter =
+                                _priorityFilter == TodoPriority.medium
+                                ? null
+                                : TodoPriority.medium;
                           });
                         },
                       ),
@@ -562,7 +583,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         selected: _priorityFilter == TodoPriority.low,
                         onSelected: (_) {
                           setState(() {
-                            _priorityFilter = _priorityFilter == TodoPriority.low ? null : TodoPriority.low;
+                            _priorityFilter =
+                                _priorityFilter == TodoPriority.low
+                                ? null
+                                : TodoPriority.low;
                           });
                         },
                       ),
@@ -629,7 +653,9 @@ class _TodoEditorSheetState extends State<_TodoEditorSheet> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.todo?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.todo?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.todo?.description ?? '',
+    );
     _priority = widget.todo?.priority ?? TodoPriority.medium;
     _dueDate = widget.todo?.dueDate;
   }
@@ -655,7 +681,9 @@ class _TodoEditorSheetState extends State<_TodoEditorSheet> {
 
     final time = await showTimePicker(
       context: context,
-      initialTime: _dueDate != null ? TimeOfDay.fromDateTime(_dueDate!) : TimeOfDay.now(),
+      initialTime: _dueDate != null
+          ? TimeOfDay.fromDateTime(_dueDate!)
+          : TimeOfDay.now(),
     );
 
     if (!mounted) return;
@@ -676,18 +704,19 @@ class _TodoEditorSheetState extends State<_TodoEditorSheet> {
       return;
     }
 
-    final item = (widget.todo ??
-            TodoItem(
-              id: DateTime.now().microsecondsSinceEpoch.toString(),
-              title: '',
-            ))
-        .copyWith(
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      dueDate: _dueDate,
-      clearDueDate: _dueDate == null,
-      priority: _priority,
-    );
+    final item =
+        (widget.todo ??
+                TodoItem(
+                  id: DateTime.now().microsecondsSinceEpoch.toString(),
+                  title: '',
+                ))
+            .copyWith(
+              title: _titleController.text.trim(),
+              description: _descriptionController.text.trim(),
+              dueDate: _dueDate,
+              clearDueDate: _dueDate == null,
+              priority: _priority,
+            );
 
     Navigator.of(context).pop(item);
   }
@@ -738,7 +767,10 @@ class _TodoEditorSheetState extends State<_TodoEditorSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Mức ưu tiên', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Mức ưu tiên',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 8),
               SegmentedButton<TodoPriority>(
                 showSelectedIcon: false,

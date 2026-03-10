@@ -73,3 +73,31 @@ Chạy test widget hiện tại:
 ```bash
 flutter test
 ```
+
+## 🔐 Firebase + Google Sign-In
+
+Code đăng nhập Google đã được tích hợp trong app. Để chạy thực tế, cần cấu hình Firebase project:
+
+1) Tạo project trên Firebase Console và bật Authentication -> Sign-in method -> Google.
+
+2) Cài FlutterFire CLI (nếu chưa có):
+
+```bash
+dart pub global activate flutterfire_cli
+```
+
+3) Cấu hình Firebase cho app:
+
+```bash
+flutterfire configure
+```
+
+4) Chạy lại app:
+
+```bash
+flutter run
+```
+
+Lưu ý:
+- Android cần `SHA-1`/`SHA-256` (lấy bằng `./gradlew signingReport`) để Google Sign-In hoạt động.
+- iOS cần thêm `REVERSED_CLIENT_ID` vào URL Types (Xcode), theo file cấu hình Firebase.
